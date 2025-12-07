@@ -8,6 +8,32 @@ plain='\033[0m'
 
 cur_dir=$(pwd)
 
+# 显示炫酷标题
+show_banner() {
+    clear
+    echo -e "${green}"
+    echo "╔═══════════════════════════════════════════════════════════════╗"
+    echo "║                                                               ║"
+    echo "║                                                               ║"
+    echo "║        ${blue}███████╗${green}     ${blue}██╗   ██╗${green}     ${blue}██╗     ${green}     ${blue}██╗██╗${green}        ║"
+    echo "║        ${blue}██╔════╝${green}     ${blue}██║   ██║${green}     ${blue}██║     ${green}     ${blue}██║██║${green}        ║"
+    echo "║        ${blue}█████╗${green}       ${blue}██║   ██║${green}     ${blue}██║     ${green}     ${blue}██║██║${green}        ║"
+    echo "║        ${blue}██╔══╝${green}        ${blue}██║   ██║${green}     ${blue}██║     ${green}     ${blue}██║██║${green}        ║"
+    echo "║        ${blue}██║${green}           ${blue}╚██████╔╝${green}     ${blue}███████╗${green}     ${blue}██║██║${green}        ║"
+    echo "║        ${blue}╚═╝${green}           ${blue} ╚═════╝${green}      ${blue}╚══════╝${green}      ${blue}╚═╝╚═╝${green}        ║"
+    echo "║                                                               ║"
+    echo "║          ${yellow}════════════════════════════════════════════════════════${green}          ║"
+    echo "║                                                               ║"
+    echo "║                    ${yellow}✨ 福粒文化 3X-UI 自动安装脚本 ✨${green}                    ║"
+    echo "║                    ${yellow}    Powered by 福粒文化团队${green}                        ║"
+    echo "║                                                               ║"
+    echo "║          ${yellow}════════════════════════════════════════════════════════${green}          ║"
+    echo "║                                                               ║"
+    echo "╚═══════════════════════════════════════════════════════════════╝"
+    echo -e "${plain}"
+    echo ""
+}
+
 # check root
 [[ $EUID -ne 0 ]] && echo -e "${red}Fatal error: ${plain} Please run this script with root privilege \n " && exit 1
 
@@ -75,6 +101,11 @@ gen_random_string() {
     echo "$random_string"
 }
 
+gen_password() {
+    local random_password=$(LC_ALL=C tr -dc 'a-zA-Z' </dev/urandom | fold -w 8 | head -n 1)
+    echo "$random_password"
+}
+
 config_after_install() {
     local existing_hasDefaultCredential=$(/usr/local/x-ui/x-ui setting -show true | grep -Eo 'hasDefaultCredential: .+' | awk '{print $2}')
     local existing_webBasePath=$(/usr/local/x-ui/x-ui setting -show true | grep -Eo 'webBasePath: .+' | awk '{print $2}')
@@ -98,27 +129,28 @@ config_after_install() {
     if [[ ${#existing_webBasePath} -lt 4 ]]; then
         if [[ "$existing_hasDefaultCredential" == "true" ]]; then
             local config_webBasePath=$(gen_random_string 18)
-            local config_username=$(gen_random_string 10)
-            local config_password=$(gen_random_string 10)
+            local config_username="admin"
+            local config_password=$(gen_password)
             
-            read -rp "Would you like to customize the Panel Port settings? (If not, a random port will be applied) [y/n]: " config_confirm
-            if [[ "${config_confirm}" == "y" || "${config_confirm}" == "Y" ]]; then
-                read -rp "Please set up the panel port: " config_port
-                echo -e "${yellow}Your Panel Port is: ${config_port}${plain}"
-            else
-                local config_port=$(shuf -i 1024-62000 -n 1)
-                echo -e "${yellow}Generated random port: ${config_port}${plain}"
+            # 生成随机端口（1000-65535）
+            local port_range=$((65535 - 1000 + 1))
+            local random_value=$(od -An -N2 -tu2 /dev/urandom 2>/dev/null | tr -d ' ')
+            if [[ -z "$random_value" ]]; then
+                random_value=$((RANDOM * 2 + RANDOM % 2))
             fi
+            local config_port=$((1000 + (random_value % port_range)))
+            echo -e "${yellow}自动生成随机端口: ${config_port}${plain}"
             
             /usr/local/x-ui/x-ui setting -username "${config_username}" -password "${config_password}" -port "${config_port}" -webBasePath "${config_webBasePath}"
-            echo -e "This is a fresh installation, generating random login info for security concerns:"
-            echo -e "###############################################"
-            echo -e "${green}Username: ${config_username}${plain}"
-            echo -e "${green}Password: ${config_password}${plain}"
-            echo -e "${green}Port: ${config_port}${plain}"
+            echo -e "${green}===============================================${plain}"
+            echo -e "${green}福粒文化 - 3X-UI 安装完成！${plain}"
+            echo -e "${green}===============================================${plain}"
+            echo -e "${green}用户名: ${config_username}${plain}"
+            echo -e "${green}密码: ${config_password}${plain}"
+            echo -e "${green}端口: ${config_port}${plain}"
             echo -e "${green}WebBasePath: ${config_webBasePath}${plain}"
-            echo -e "${green}Access URL: http://${server_ip}:${config_port}/${config_webBasePath}${plain}"
-            echo -e "###############################################"
+            echo -e "${green}访问地址: http://${server_ip}:${config_port}/${config_webBasePath}${plain}"
+            echo -e "${green}===============================================${plain}"
         else
             local config_webBasePath=$(gen_random_string 18)
             echo -e "${yellow}WebBasePath is missing or too short. Generating a new one...${plain}"
@@ -128,16 +160,17 @@ config_after_install() {
         fi
     else
         if [[ "$existing_hasDefaultCredential" == "true" ]]; then
-            local config_username=$(gen_random_string 10)
-            local config_password=$(gen_random_string 10)
+            local config_username="admin"
+            local config_password=$(gen_password)
             
-            echo -e "${yellow}Default credentials detected. Security update required...${plain}"
+            echo -e "${yellow}检测到默认凭据，正在更新安全设置...${plain}"
             /usr/local/x-ui/x-ui setting -username "${config_username}" -password "${config_password}"
-            echo -e "Generated new random login credentials:"
-            echo -e "###############################################"
-            echo -e "${green}Username: ${config_username}${plain}"
-            echo -e "${green}Password: ${config_password}${plain}"
-            echo -e "###############################################"
+            echo -e "${green}===============================================${plain}"
+            echo -e "${green}福粒文化 - 凭据已更新${plain}"
+            echo -e "${green}===============================================${plain}"
+            echo -e "${green}用户名: ${config_username}${plain}"
+            echo -e "${green}密码: ${config_password}${plain}"
+            echo -e "${green}===============================================${plain}"
         else
             echo -e "${green}Username, Password, and WebBasePath are properly set. Exiting...${plain}"
         fi
@@ -258,6 +291,8 @@ install_x-ui() {
 └───────────────────────────────────────────────────────┘"
 }
 
-echo -e "${green}Running...${plain}"
+show_banner
+echo -e "${green}正在启动福粒文化 3X-UI 安装程序...${plain}"
+echo ""
 install_base
 install_x-ui $1
